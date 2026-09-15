@@ -9,7 +9,7 @@ single access-token header instead.
 - [x] Phase 0 — Repo stripped to expense manager base
 - [x] Phase 1 — Backend data model, limit, aggregation, zero-fill
 - [x] Phase 2 — Dashboard and manual entry UI
-- [ ] Phase 3 — Voice input pipeline
+- [x] Phase 3 — Voice input pipeline
 - [ ] Phase 4 — Weekly and monthly reports
 - [ ] Phase 5 — Analytics and comparisons
 - [ ] Phase 6 — Polish (local-only deployment, no live hosting)

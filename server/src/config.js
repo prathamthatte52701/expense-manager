@@ -10,7 +10,7 @@ module.exports = {
     .split(',')
     .map((key) => key.trim())
     .filter(Boolean),
-  groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  groqModel: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
   groqWhisperModel: process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3',
   categories: CATEGORIES,
 };
