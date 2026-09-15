@@ -130,7 +130,7 @@ export function DataTable({ columns, rows, emptyText = 'No records found.' }) {
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.id || index}>
+            <tr key={row.id || row.category || index}>
               {columns.map((column) => (
                 <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>
               ))}

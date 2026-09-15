@@ -8,7 +8,9 @@ const exportRoutes = require('./routes/export');
 const { mongoUri, port } = require('./config');
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+// No cookies are used anywhere (auth is a header-based static token), so
+// credentials:true would only widen the CORS surface for no benefit.
+app.use(cors({ origin: true, credentials: false }));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -20,7 +22,7 @@ app.use((req, res) => res.status(404).json({ message: 'Not found.' }));
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ message: 'Something went wrong.' });
+  res.status(err.status || 500).json({ message: err.status ? err.message : 'Something went wrong.' });
 });
 
 async function bootstrap() {

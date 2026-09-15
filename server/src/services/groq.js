@@ -4,10 +4,17 @@ let keyIndex = 0;
 
 async function withKeyRotation(fn) {
   if (!groqApiKeys.length) throw new Error('No GROQ_API_KEY configured.');
+  // Claim this call's own starting index with a single synchronous read+increment
+  // (safe — no await between them), then walk a fixed window from there. This
+  // keeps one call's retry sequence self-consistent even if concurrent calls
+  // advance the shared counter in between this call's own attempts — otherwise
+  // a call could get desynced into retrying an already-failed key while never
+  // reaching an untried one within its own attempt budget.
+  const startIndex = keyIndex;
+  keyIndex += groqApiKeys.length;
   let lastError;
   for (let attempt = 0; attempt < groqApiKeys.length; attempt += 1) {
-    const key = groqApiKeys[keyIndex % groqApiKeys.length];
-    keyIndex += 1;
+    const key = groqApiKeys[(startIndex + attempt) % groqApiKeys.length];
     try {
       return await fn(key);
     } catch (error) {

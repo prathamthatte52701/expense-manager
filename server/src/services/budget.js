@@ -1,7 +1,7 @@
 const MonthSetting = require('../models/MonthSetting');
 const Transaction = require('../models/Transaction');
 const { categories } = require('../config');
-const { monthKey, monthRange, daysInMonth, dateKey } = require('../utils/month');
+const { monthKey, monthRange, daysInMonth, dateKey, isValidMonthYear, istStartOfDay, istEndOfDay } = require('../utils/month');
 
 async function getLimit(monthYear) {
   const setting = await MonthSetting.findOne({ monthYear }).lean();
@@ -61,7 +61,7 @@ async function dayBreakdown(monthYear = monthKey()) {
     { $match: { monthYear } },
     {
       $group: {
-        _id: { day: { $dateToString: { format: '%Y-%m-%d', date: '$date' } }, category: '$category' },
+        _id: { day: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, category: '$category' },
         total: { $sum: '$amount' },
       },
     },
@@ -106,6 +106,11 @@ async function listMonths() {
 }
 
 async function compare(months) {
+  if (months && months.some((m) => !isValidMonthYear(m))) {
+    const error = new Error('Every month in "months" must be in YYYY-MM format.');
+    error.status = 400;
+    throw error;
+  }
   const targetMonths = months && months.length ? months : await listMonths();
   const rows = await Transaction.aggregate([
     { $match: { monthYear: { $in: targetMonths } } },
@@ -129,8 +134,8 @@ function transactionQuery({ monthYear, category, startDate, endDate }) {
   if (category && categories.includes(category)) query.category = category;
   if (startDate || endDate) {
     query.date = {};
-    if (startDate) query.date.$gte = new Date(startDate);
-    if (endDate) query.date.$lte = new Date(`${endDate}T23:59:59.999Z`);
+    if (startDate) query.date.$gte = istStartOfDay(startDate);
+    if (endDate) query.date.$lte = istEndOfDay(endDate);
   } else if (monthYear) {
     const { start, end } = monthRange(monthYear);
     query.date = { $gte: start, $lt: end };

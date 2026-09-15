@@ -121,7 +121,7 @@ export default function Dashboard() {
 
       <section className="glass p-5">
         <h2 className="mb-4 text-xl font-semibold">This Month at a Glance</h2>
-        <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-10 lg:grid-cols-15">
+        <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-10 lg:grid-cols-[repeat(15,minmax(0,1fr))]">
           {days.map((day) => {
             const intensity = day.total ? Math.max(0.15, day.total / maxDayTotal) : 0
             return (
