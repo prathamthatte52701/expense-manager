@@ -10,7 +10,7 @@ single access-token header instead.
 - [x] Phase 1 — Backend data model, limit, aggregation, zero-fill
 - [x] Phase 2 — Dashboard and manual entry UI
 - [x] Phase 3 — Voice input pipeline
-- [ ] Phase 4 — Weekly and monthly reports
+- [x] Phase 4 — Weekly and monthly reports
 - [ ] Phase 5 — Analytics and comparisons
 - [ ] Phase 6 — Polish (local-only deployment, no live hosting)
 
