@@ -6,7 +6,7 @@ single access-token header instead.
 
 ## Feature checklist
 
-- [ ] Phase 0 — Repo stripped to expense manager base
+- [x] Phase 0 — Repo stripped to expense manager base
 - [ ] Phase 1 — Backend data model, limit, aggregation, zero-fill
 - [ ] Phase 2 — Dashboard and manual entry UI
 - [ ] Phase 3 — Voice input pipeline

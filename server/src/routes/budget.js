@@ -3,22 +3,34 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const { categories } = require('../config');
-const { monthKey } = require('../utils/month');
+const { monthKey, isValidMonthYear } = require('../utils/month');
 const { getLimit, setLimit, summary, dayBreakdown, listMonths, compare, transactionQuery } = require('../services/budget');
 const { transcribeAudio, extractExpense } = require('../services/groq');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 const router = express.Router();
 
-router.get('/summary', async (req, res) => {
+router.param('monthYear', (req, res, next, monthYear) => {
+  if (!isValidMonthYear(monthYear)) return res.status(400).json({ message: 'monthYear must be in YYYY-MM format.' });
+  return next();
+});
+
+function checkQueryMonthYear(req, res, next) {
+  if (req.query.monthYear && !isValidMonthYear(req.query.monthYear)) {
+    return res.status(400).json({ message: 'monthYear must be in YYYY-MM format.' });
+  }
+  return next();
+}
+
+router.get('/summary', checkQueryMonthYear, async (req, res) => {
   res.json(await summary(req.query.monthYear || monthKey()));
 });
 
-router.get('/days', async (req, res) => {
+router.get('/days', checkQueryMonthYear, async (req, res) => {
   res.json(await dayBreakdown(req.query.monthYear || monthKey()));
 });
 
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', checkQueryMonthYear, async (req, res) => {
   const monthYear = req.query.monthYear || monthKey();
   const [summaryData, days, transactions] = await Promise.all([
     summary(monthYear),
@@ -48,7 +60,7 @@ router.patch('/limit/:monthYear', async (req, res) => {
   res.json({ monthYear: req.params.monthYear, monthlyLimit: saved });
 });
 
-router.get('/transactions', async (req, res) => {
+router.get('/transactions', checkQueryMonthYear, async (req, res) => {
   const { monthYear, category, startDate, endDate } = req.query;
   const query = transactionQuery({ monthYear, category, startDate, endDate });
   const transactions = await Transaction.find(query).sort({ date: -1, createdAt: -1 }).lean();

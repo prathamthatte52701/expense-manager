@@ -15,9 +15,13 @@ function daysInMonth(monthYear) {
   return new Date(year, month, 0).getDate();
 }
 
+function isValidMonthYear(value) {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
 function dateKey(date) {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-module.exports = { monthKey, monthRange, daysInMonth, dateKey };
+module.exports = { monthKey, monthRange, daysInMonth, dateKey, isValidMonthYear };

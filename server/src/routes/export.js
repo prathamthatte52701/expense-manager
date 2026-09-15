@@ -3,10 +3,15 @@ const { Parser } = require('json2csv');
 const PDFDocument = require('pdfkit');
 const Transaction = require('../models/Transaction');
 const { summary } = require('../services/budget');
-const { monthKey } = require('../utils/month');
+const { monthKey, isValidMonthYear } = require('../utils/month');
 
 const router = express.Router();
 const FIELDS = ['date', 'category', 'amount', 'note', 'source', 'monthYear'];
+
+router.param('monthYear', (req, res, next, monthYear) => {
+  if (!isValidMonthYear(monthYear)) return res.status(400).json({ message: 'monthYear must be in YYYY-MM format.' });
+  return next();
+});
 
 async function loadRange(startDate, endDate) {
   const query = { date: { $gte: new Date(startDate), $lte: new Date(`${endDate}T23:59:59.999Z`) } };
