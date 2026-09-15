@@ -12,7 +12,7 @@ single access-token header instead.
 - [x] Phase 3 — Voice input pipeline
 - [x] Phase 4 — Weekly and monthly reports
 - [x] Phase 5 — Analytics and comparisons
-- [ ] Phase 6 — Polish (local-only deployment, no live hosting)
+- [x] Phase 6 — Polish (local-only deployment, no live hosting)
 
 ## Tech stack
 
