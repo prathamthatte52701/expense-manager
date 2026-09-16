@@ -1,12 +1,14 @@
 import { CalendarDays, ChevronLeft, ChevronRight, ReceiptText } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CATEGORIES, api, rupee, thisMonth } from '../lib/api'
+import { api, rupee, thisMonth } from '../lib/api'
 import { compactDate, monthDays, monthLabel, shiftMonth } from '../lib/finance'
 import { DataCard, EmptyState, MetricCard, PageHeader } from '../components/ui'
+import { useCategories } from '../context/CategoryContext'
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function CalendarPage() {
+  const { categories } = useCategories()
   const [monthYear, setMonthYear] = useState(thisMonth())
   const [days, setDays] = useState([])
   const [summary, setSummary] = useState(null)
@@ -70,7 +72,7 @@ export default function CalendarPage() {
       </DataCard>
 
       <DataCard title={selected ? `Activity on ${compactDate(selected.date)}` : 'Daily activity'} description={selected ? `Total: ${rupee.format(selected.total)}` : 'Choose a day from the calendar.'}>
-        {selected ? <div className="divide-y divide-white/10">{CATEGORIES.map((category) => (
+        {selected ? <div className="divide-y divide-white/10">{categories.map((category) => (
           <div key={category} className="flex items-center justify-between py-3">
             <span>{category}</span>
             <strong className={selected.categories[category] ? 'text-rose-300' : 'text-muted'}>{rupee.format(selected.categories[category] || 0)}</strong>

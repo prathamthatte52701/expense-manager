@@ -2,7 +2,8 @@ import { motion } from 'framer-motion'
 import { CalendarDays, IndianRupee, ListChecks, Mic, MessageCircle, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CATEGORIES, api, todayInput } from '../lib/api'
+import { api, todayInput } from '../lib/api'
+import { useCategories } from '../context/CategoryContext'
 
 export function confidenceTier(confidence) {
   if (confidence === null || confidence === undefined) return null
@@ -13,6 +14,7 @@ export function confidenceTier(confidence) {
 }
 
 export default function VoiceEntryModal({ open, onClose, onSaved }) {
+  const { categories } = useCategories()
   const [phase, setPhase] = useState('idle') // idle | recording | processing | confirm | answer
   const [transcript, setTranscript] = useState('')
   const [category, setCategory] = useState('')
@@ -183,7 +185,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
               <span className="inline-flex items-center gap-2"><ListChecks className="size-4" /> Category</span>
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Select category</option>
-                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                {categories.map((c) => <option key={c}>{c}</option>)}
               </select>
             </label>
             <label className="field">

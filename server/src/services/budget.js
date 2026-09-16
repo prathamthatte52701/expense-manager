@@ -1,6 +1,6 @@
 const MonthSetting = require('../models/MonthSetting');
 const Transaction = require('../models/Transaction');
-const { categories } = require('../config');
+const { listCategories } = require('./category');
 const { monthKey, monthRange, daysInMonth, dateKey, isValidMonthYear, istStartOfDay, istEndOfDay } = require('../utils/month');
 
 async function getLimit(monthYear) {
@@ -26,12 +26,13 @@ function statusFor(totalSpent, monthlyLimit) {
 }
 
 async function summary(monthYear = monthKey()) {
-  const [monthlyLimit, totals] = await Promise.all([
+  const [monthlyLimit, totals, categories] = await Promise.all([
     getLimit(monthYear),
     Transaction.aggregate([
       { $match: { monthYear } },
       { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
     ]),
+    listCategories(),
   ]);
 
   const categoryTotals = categories.map((category) => {
@@ -57,14 +58,17 @@ async function dayBreakdown(monthYear = monthKey()) {
   const totalDays = daysInMonth(monthYear);
   const todayKey = dateKey(new Date());
 
-  const grouped = await Transaction.aggregate([
-    { $match: { monthYear } },
-    {
-      $group: {
-        _id: { day: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, category: '$category' },
-        total: { $sum: '$amount' },
+  const [grouped, categories] = await Promise.all([
+    Transaction.aggregate([
+      { $match: { monthYear } },
+      {
+        $group: {
+          _id: { day: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, category: '$category' },
+          total: { $sum: '$amount' },
+        },
       },
-    },
+    ]),
+    listCategories(),
   ]);
 
   const byDay = new Map();
@@ -112,9 +116,12 @@ async function compare(months) {
     throw error;
   }
   const targetMonths = months && months.length ? months : await listMonths();
-  const rows = await Transaction.aggregate([
-    { $match: { monthYear: { $in: targetMonths } } },
-    { $group: { _id: { monthYear: '$monthYear', category: '$category' }, total: { $sum: '$amount' } } },
+  const [rows, categories] = await Promise.all([
+    Transaction.aggregate([
+      { $match: { monthYear: { $in: targetMonths } } },
+      { $group: { _id: { monthYear: '$monthYear', category: '$category' }, total: { $sum: '$amount' } } },
+    ]),
+    listCategories(),
   ]);
   return targetMonths
     .slice()
@@ -129,9 +136,12 @@ async function compare(months) {
     });
 }
 
+// ponytail: no longer validates category against the live list (would require
+// this — and its two callers in routes/budget.js — to go async). Mongo simply
+// returns zero rows for a bogus category, so the filter is harmless either way.
 function transactionQuery({ monthYear, category, startDate, endDate }) {
   const query = {};
-  if (category && categories.includes(category)) query.category = category;
+  if (category) query.category = category;
   if (startDate || endDate) {
     query.date = {};
     if (startDate) query.date.$gte = istStartOfDay(startDate);

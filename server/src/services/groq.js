@@ -1,4 +1,5 @@
-const { groqApiKeys, groqModel, groqWhisperModel, categories } = require('../config');
+const { groqApiKeys, groqModel, groqWhisperModel } = require('../config');
+const { listCategories } = require('./category');
 
 let keyIndex = 0;
 
@@ -76,6 +77,7 @@ async function chatJson(systemPrompt, userContent) {
 }
 
 async function extractExpense(transcript) {
+  const categories = await listCategories();
   const parsed = await chatJson(
     `Extract an expense from a sentence that may be in Hindi, Hinglish, or English. All amounts are in Indian Rupees regardless of any currency symbol (e.g. "$", "₹") the transcript may contain — treat such symbols as transcription noise, not as an indication of a different currency. Return only JSON: { "category": one of ${JSON.stringify(categories)} or null, "amount": number in rupees or null, "confidence": integer 0-100 reflecting how certain you are about both fields }. If either field is ambiguous or missing, return null for it and lower confidence accordingly. Never guess.`,
     transcript

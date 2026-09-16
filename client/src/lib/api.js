@@ -1,10 +1,11 @@
 import axios from 'axios'
 
-export const CATEGORIES = ['Packing Material', 'Bus Travel Booking', 'Fuel Cost', 'Miscellaneous']
-
 // ponytail: 45s covers slow transcription+LLM round trips without hanging forever on a stalled connection.
 export const api = axios.create({ baseURL: '/api', timeout: 45000 })
 api.defaults.headers.common['x-app-token'] = import.meta.env.VITE_ACCESS_TOKEN || ''
+
+api.getCategories = async () => (await api.get('/budget/categories')).data
+api.addCategory = async (name) => (await api.post('/budget/categories', { name })).data
 
 api.interceptors.response.use(undefined, async (error) => {
   const request = error.config

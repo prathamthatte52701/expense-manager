@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const auth = require('./middleware/auth');
 const budgetRoutes = require('./routes/budget');
 const exportRoutes = require('./routes/export');
+const { ensureSeeded } = require('./services/category');
 const { mongoUri, port } = require('./config');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use((err, _req, res, _next) => {
 
 async function bootstrap() {
   await mongoose.connect(mongoUri, { family: 4 });
+  await ensureSeeded();
   app.listen(port, () => console.log(`Expense Manager API running on http://localhost:${port}`));
 }
 

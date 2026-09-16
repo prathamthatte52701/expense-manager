@@ -3,11 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import SortControl from '../components/SortControl'
 import TransactionModal from '../components/TransactionModal'
-import { CATEGORIES, api, rupee, thisMonth } from '../lib/api'
+import { api, rupee, thisMonth } from '../lib/api'
 import { sortTransactions } from '../lib/sort'
 import { confidenceTier } from '../components/VoiceEntryModal'
+import { useCategories } from '../context/CategoryContext'
 
 export default function HistoryPage() {
+  const { categories } = useCategories()
   const [months, setMonths] = useState([thisMonth()])
   const [monthYear, setMonthYear] = useState(thisMonth())
   const [transactions, setTransactions] = useState([])
@@ -81,7 +83,7 @@ export default function HistoryPage() {
         <div className="grid gap-3 md:grid-cols-[160px_1fr_140px_auto_auto]">
           <select value={monthYear} onChange={(e) => setMonthYear(e.target.value)}>{months.map((m) => <option key={m}>{m}</option>)}</select>
           <div className="relative"><Search className="absolute left-3 top-3 size-4 text-muted" /><input className="pl-9" value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} placeholder="Search notes..." /></div>
-          <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })}><option>All</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+          <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })}><option>All</option>{categories.map((c) => <option key={c}>{c}</option>)}</select>
           <SortControl value={sortBy} onChange={setSortBy} />
           <button className="soft-btn" onClick={resetFilters}><RotateCcw className="size-4" /> Reset</button>
         </div>
@@ -105,7 +107,7 @@ export default function HistoryPage() {
         ))}
         {!visible.length && <p className="p-5 text-muted">No entries match this view.</p>}
       </section>
-      <TransactionModal open={modalOpen} editing={modalTransaction} onClose={() => { setModalOpen(false); setModalTransaction(null) }} onSubmit={save} categories={CATEGORIES} />
+      <TransactionModal open={modalOpen} editing={modalTransaction} onClose={() => { setModalOpen(false); setModalTransaction(null) }} onSubmit={save} categories={categories} />
     </div>
   )
 }

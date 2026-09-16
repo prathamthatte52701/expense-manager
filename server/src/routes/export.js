@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const Transaction = require('../models/Transaction');
 const { summary } = require('../services/budget');
 const { generateNarrativeSummary } = require('../services/groq');
+const { listCategories } = require('../services/category');
 const { monthKey, isValidMonthYear, isValidDateOnly, istStartOfDay, istEndOfDay } = require('../utils/month');
 
 const router = express.Router();
@@ -64,8 +65,8 @@ function buildPdf(res, filename, title, totals, transactions, aiSummary) {
   doc.end();
 }
 
-function rangeTotals(transactions) {
-  const { categories } = require('../config');
+async function rangeTotals(transactions) {
+  const categories = await listCategories();
   const totalSpent = transactions.reduce((sum, tx) => sum + tx.amount, 0);
   const categoryTotals = categories.map((category) => {
     const matching = transactions.filter((tx) => tx.category === category);
@@ -87,7 +88,7 @@ async function maybeAiSummary(req, queryType, dataUsed) {
 router.get('/range.json', checkRangeParams, async (req, res) => {
   const { start, end } = req.query;
   const transactions = await loadRange(start, end);
-  const totals = rangeTotals(transactions);
+  const totals = await rangeTotals(transactions);
   const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
   res.header('Content-Type', 'application/json');
   res.attachment(`expenses-${start}_to_${end}.json`);
@@ -106,7 +107,7 @@ router.get('/range.csv', checkRangeParams, async (req, res) => {
 router.get('/range.pdf', checkRangeParams, async (req, res) => {
   const { start, end } = req.query;
   const transactions = await loadRange(start, end);
-  const totals = rangeTotals(transactions);
+  const totals = await rangeTotals(transactions);
   const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
   buildPdf(res, `expenses-${start}_to_${end}.pdf`, `Expense Report ${start} to ${end}`, totals, transactions, aiSummary);
 });

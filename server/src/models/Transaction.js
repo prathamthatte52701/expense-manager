@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
 const { monthKey } = require('../utils/month');
-const { categories } = require('../config');
 
 const transactionSchema = new mongoose.Schema(
   {
-    category: { type: String, required: true, enum: categories },
+    category: { type: String, required: true },
     amount: { type: Number, required: true, min: 0.01 },
     note: { type: String, default: '', trim: true },
     date: { type: Date, default: Date.now },

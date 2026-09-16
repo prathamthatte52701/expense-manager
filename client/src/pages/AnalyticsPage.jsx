@@ -1,13 +1,16 @@
 import { BarChart3, IndianRupee, WalletCards } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, Bar, BarChart, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { CATEGORIES, api, rupee, thisMonth } from '../lib/api'
+import { api, rupee, thisMonth } from '../lib/api'
 import { monthLabel } from '../lib/finance'
 import { DataCard, EmptyState, MetricCard, PageHeader } from '../components/ui'
+import { useCategories } from '../context/CategoryContext'
 
-const chartColors = ['#2dd4bf', '#60a5fa', '#f59e0b', '#fb7185']
+// ponytail: 12 distinct hues covers the category cap (12); cycles via % if that cap ever rises.
+const chartColors = ['#2dd4bf', '#60a5fa', '#f59e0b', '#fb7185', '#a78bfa', '#34d399', '#f472b6', '#facc15', '#38bdf8', '#fb923c', '#c084fc', '#4ade80']
 
 export default function AnalyticsPage() {
+  const { categories } = useCategories()
   const [monthYear, setMonthYear] = useState(thisMonth())
   const [summary, setSummary] = useState(null)
   const [compare, setCompare] = useState([])
@@ -53,11 +56,11 @@ export default function AnalyticsPage() {
   }, [days])
 
   const shareData = useMemo(() => compare.map((m) => {
-    const total = CATEGORIES.reduce((sum, c) => sum + (m.categoryTotals[c] || 0), 0)
+    const total = categories.reduce((sum, c) => sum + (m.categoryTotals[c] || 0), 0)
     const row = { label: monthLabel(m.monthYear, { month: 'short', year: '2-digit' }) }
-    CATEGORIES.forEach((c) => { row[c] = total > 0 ? Math.round(((m.categoryTotals[c] || 0) / total) * 1000) / 10 : 0 })
+    categories.forEach((c) => { row[c] = total > 0 ? Math.round(((m.categoryTotals[c] || 0) / total) * 1000) / 10 : 0 })
     return row
-  }), [compare])
+  }), [compare, categories])
 
   return (
     <div className="space-y-5">
@@ -74,10 +77,10 @@ export default function AnalyticsPage() {
       {loading ? <DataCard title="Loading analytics"><p className="text-sm text-muted">Calculating monthly patterns...</p></DataCard> : !pieData.length && !compare.length ? <EmptyState icon={BarChart3} title="No activity yet" description="Analytics will populate as soon as you record expenses." /> : <>
         <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
           <DataCard title="Category mix" description={`Share of spending in ${monthLabel(monthYear)}.`}>
-            {pieData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} dataKey="total" nameKey="category" innerRadius={58} outerRadius={100} paddingAngle={3} label={(entry) => rupee.format(entry.total)}>{pieData.map((item) => <Cell fill={chartColors[CATEGORIES.indexOf(item.category) % chartColors.length]} key={item.category} />)}</Pie><Tooltip formatter={(value) => rupee.format(value)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend /></PieChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No spending this month" description="Add an expense to see the category split." />}
+            {pieData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} dataKey="total" nameKey="category" innerRadius={58} outerRadius={100} paddingAngle={3} label={(entry) => rupee.format(entry.total)}>{pieData.map((item) => <Cell fill={chartColors[categories.indexOf(item.category) % chartColors.length]} key={item.category} />)}</Pie><Tooltip formatter={(value) => rupee.format(value)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend /></PieChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No spending this month" description="Add an expense to see the category split." />}
           </DataCard>
           <DataCard title="Month-over-month" description="All tracked months, broken down by category.">
-            {barData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={barData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `₹${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} width={48} /><Tooltip formatter={(value) => rupee.format(value)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend />{CATEGORIES.map((category, index) => <Bar key={category} dataKey={category} stackId="spend" name={category} fill={chartColors[index]} />)}</BarChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No months tracked yet" description="Once you have expenses across months, they'll compare here." />}
+            {barData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={barData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `₹${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} width={48} /><Tooltip formatter={(value) => rupee.format(value)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend />{categories.map((category, index) => <Bar key={category} dataKey={category} stackId="spend" name={category} fill={chartColors[index % chartColors.length]} />)}</BarChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No months tracked yet" description="Once you have expenses across months, they'll compare here." />}
           </DataCard>
         </div>
 
@@ -86,7 +89,7 @@ export default function AnalyticsPage() {
             {cumulativeData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><LineChart data={cumulativeData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}><XAxis dataKey="day" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `₹${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} width={48} /><Tooltip formatter={(value) => rupee.format(value)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Line type="monotone" dataKey="cumulative" stroke="#2dd4bf" strokeWidth={2} dot={false} name="Running total" />{summary?.monthlyLimit > 0 && <ReferenceLine y={summary.monthlyLimit} stroke="#fb7185" strokeDasharray="4 4" label={{ value: 'Limit', fill: '#fb7185', fontSize: 11 }} />}</LineChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No spending this month" description="Add an expense to see the running total." />}
           </DataCard>
           <DataCard title="Category share over time" description="Each month's spend mix, as a percentage of that month's total.">
-            {shareData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><AreaChart data={shareData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `${value}%`} tickLine={false} axisLine={false} width={40} domain={[0, 100]} /><Tooltip formatter={(value) => `${value}%`} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend />{CATEGORIES.map((category, index) => <Area key={category} type="monotone" dataKey={category} stackId="share" name={category} stroke={chartColors[index]} fill={chartColors[index]} fillOpacity={0.7} />)}</AreaChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No months tracked yet" description="Category mix over time appears once you have multiple months." />}
+            {shareData.length ? <div className="h-80"><ResponsiveContainer width="100%" height="100%"><AreaChart data={shareData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `${value}%`} tickLine={false} axisLine={false} width={40} domain={[0, 100]} /><Tooltip formatter={(value) => `${value}%`} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} /><Legend />{categories.map((category, index) => <Area key={category} type="monotone" dataKey={category} stackId="share" name={category} stroke={chartColors[index % chartColors.length]} fill={chartColors[index % chartColors.length]} fillOpacity={0.7} />)}</AreaChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="No months tracked yet" description="Category mix over time appears once you have multiple months." />}
           </DataCard>
         </div>
       </>}

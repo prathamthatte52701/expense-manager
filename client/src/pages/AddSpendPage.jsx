@@ -1,13 +1,15 @@
 import { CalendarDays, IndianRupee, Mic, NotebookPen, PlusCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { CATEGORIES, api, rupee, thisMonth, todayInput } from '../lib/api'
+import { api, rupee, thisMonth, todayInput } from '../lib/api'
 import { useGlobalVoice } from '../hooks/useGlobalVoice'
+import { useCategories } from '../context/CategoryContext'
 
 export default function AddSpendPage() {
   const { openVoice } = useGlobalVoice()
+  const { categories } = useCategories()
   const [summary, setSummary] = useState(null)
-  const [category, setCategory] = useState(CATEGORIES[0])
+  const [category, setCategory] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayInput())
   const [note, setNote] = useState('')
@@ -23,6 +25,10 @@ export default function AddSpendPage() {
     window.addEventListener('expense:changed', load)
     return () => window.removeEventListener('expense:changed', load)
   }, [])
+
+  useEffect(() => {
+    if (!category && categories.length) setCategory(categories[0])
+  }, [categories, category])
 
   async function submit(event) {
     event.preventDefault()
@@ -53,7 +59,7 @@ export default function AddSpendPage() {
         <div>
           <span className="mb-2 block text-sm text-muted">Category</span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <button
                 key={c}
                 type="button"

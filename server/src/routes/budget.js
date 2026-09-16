@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
-const { categories } = require('../config');
+const { listCategories, addCategory } = require('../services/category');
 const { monthKey, isValidMonthYear, isValidDateOnly, istStartOfDay } = require('../utils/month');
 
 const MAX_AMOUNT = 1e7; // ₹1 crore — sane ceiling, prevents formatting/layout overflow
@@ -109,8 +109,19 @@ router.get('/transactions', checkQueryMonthYear, checkDateRange, async (req, res
   res.json(transactions);
 });
 
+router.get('/categories', async (_req, res) => {
+  res.json(await listCategories());
+});
+
+router.post('/categories', async (req, res) => {
+  const result = await addCategory(req.body.name);
+  if (result.error) return res.status(400).json({ message: result.error });
+  res.status(201).json(result.categories);
+});
+
 router.post('/transactions', async (req, res) => {
   const { category, amount, date, note, source, rawTranscript } = req.body;
+  const categories = await listCategories();
   if (!categories.includes(category)) return res.status(400).json({ message: `category must be one of ${categories.join(', ')}` });
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) return res.status(400).json({ message: 'amount must be greater than 0.' });
@@ -144,6 +155,7 @@ router.put('/transactions/:id', async (req, res) => {
 
   const { category, amount, date, note } = req.body;
   if (category !== undefined) {
+    const categories = await listCategories();
     if (!categories.includes(category)) return res.status(400).json({ message: `category must be one of ${categories.join(', ')}` });
     transaction.category = category;
   }

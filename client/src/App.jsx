@@ -19,6 +19,7 @@ import Dashboard from './pages/Dashboard'
 import VoiceEntryModal from './components/VoiceEntryModal'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { GlobalVoiceProvider, useGlobalVoice } from './hooks/useGlobalVoice'
+import { CategoryProvider } from './context/CategoryContext'
 
 const AddSpendPage = lazy(() => import('./pages/AddSpendPage'))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
@@ -157,9 +158,11 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <GlobalVoiceProvider>
-        <Shell />
-      </GlobalVoiceProvider>
+      <CategoryProvider>
+        <GlobalVoiceProvider>
+          <Shell />
+        </GlobalVoiceProvider>
+      </CategoryProvider>
     </ThemeProvider>
   )
 }
