@@ -85,7 +85,7 @@ export default function ReportsPage() {
         </div>
       </DataCard>
 
-      <DataCard title="Weekly report" description="Pick any date range for a custom weekly export." actions={<div className="flex gap-2"><input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} /><input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} /></div>}>
+      <DataCard title="Weekly report" description="Pick any date range for a custom weekly export." actions={<div className="flex flex-wrap gap-2"><input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} /><input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} /></div>}>
         <div className="flex flex-wrap gap-2">
           <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/range.csv?start=${weekStart}&end=${weekEnd}`), `expenses-${weekStart}_to_${weekEnd}.csv`)} type="button"><FileSpreadsheet className="size-4" />CSV</button>
           <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/range.json?start=${weekStart}&end=${weekEnd}`), `expenses-${weekStart}_to_${weekEnd}.json`)} type="button"><FileText className="size-4" />JSON</button>

@@ -23,6 +23,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   const [error, setError] = useState('')
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
+  const cancelledRef = useRef(false)
 
   useEffect(() => {
     if (!open) return undefined
@@ -60,14 +61,26 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   }
 
   function close() {
+    cancelledRef.current = true
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.onstop = null
+      mediaRecorder.current.stop()
+      mediaRecorder.current.stream?.getTracks().forEach((track) => track.stop())
+    }
     reset()
     onClose()
   }
 
   async function startRecording() {
     setError('')
+    cancelledRef.current = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // modal was closed/reset while getUserMedia was pending - don't resurrect a stale recording
+      if (cancelledRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       chunks.current = []
       const recorder = new MediaRecorder(stream)
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data) }
@@ -133,8 +146,8 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   const tier = confidenceTier(confidence)
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-3 backdrop-blur-sm sm:place-items-center">
-      <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="glass w-full max-w-md space-y-4 p-5">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-3 backdrop-blur-sm sm:place-items-center" onClick={close}>
+      <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="glass w-full max-w-md space-y-4 p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Voice Entry</h2>
           <button type="button" onClick={close} className="icon-btn"><X className="size-4" /></button>

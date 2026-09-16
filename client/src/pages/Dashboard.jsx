@@ -111,11 +111,11 @@ export default function Dashboard() {
           <div className="space-y-3">
             {transactions.map((tx) => (
               <div key={tx._id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-medium">{tx.category}{tx.source === 'voice' && <Mic className="ml-1 inline size-3 text-teal-300" />}</p>
-                  <p className="text-sm text-muted">{tx.note || 'No note'} - {tx.date.slice(0, 10)}</p>
+                  <p className="text-sm text-muted break-words">{tx.note || 'No note'} - {tx.date.slice(0, 10)}</p>
                 </div>
-                <b>{rupee.format(tx.amount)}</b>
+                <b className="shrink-0">{rupee.format(tx.amount)}</b>
               </div>
             ))}
             {!transactions.length && <p className="text-sm text-muted">No spends this month yet.</p>}

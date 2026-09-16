@@ -2,7 +2,8 @@ import axios from 'axios'
 
 export const CATEGORIES = ['Packing Material', 'Bus Travel Booking', 'Fuel Cost', 'Miscellaneous']
 
-export const api = axios.create({ baseURL: '/api' })
+// ponytail: 45s covers slow transcription+LLM round trips without hanging forever on a stalled connection.
+export const api = axios.create({ baseURL: '/api', timeout: 45000 })
 api.defaults.headers.common['x-app-token'] = import.meta.env.VITE_ACCESS_TOKEN || ''
 
 api.interceptors.response.use(undefined, async (error) => {
