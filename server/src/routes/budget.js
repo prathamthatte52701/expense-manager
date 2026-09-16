@@ -9,7 +9,13 @@ const MAX_AMOUNT = 1e7; // ₹1 crore — sane ceiling, prevents formatting/layo
 const MAX_NOTE_LENGTH = 500;
 const MAX_TRANSCRIPT_LENGTH = 2000;
 const { getLimit, setLimit, summary, dayBreakdown, listMonths, compare, transactionQuery } = require('../services/budget');
-const { transcribeAudio, extractExpense } = require('../services/groq');
+const { transcribeAudio, extractExpense, classifyVoiceIntent, generateNarrativeSummary } = require('../services/groq');
+
+function previousMonthYear(monthYear) {
+  const [year, month] = monthYear.split('-').map(Number);
+  const d = new Date(year, month - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 const router = express.Router();
@@ -112,13 +118,17 @@ router.post('/transactions', async (req, res) => {
   if (note && String(note).length > MAX_NOTE_LENGTH) return res.status(400).json({ message: `note must be ${MAX_NOTE_LENGTH} characters or fewer.` });
   if (rawTranscript && String(rawTranscript).length > MAX_TRANSCRIPT_LENGTH) return res.status(400).json({ message: `rawTranscript must be ${MAX_TRANSCRIPT_LENGTH} characters or fewer.` });
 
+  const isVoice = source === 'voice';
+  const confidence = isVoice && Number.isFinite(Number(req.body.confidence)) ? Math.max(0, Math.min(100, Math.round(Number(req.body.confidence)))) : null;
+
   const transaction = await Transaction.create({
     category,
     amount: numericAmount,
     date: date ? istStartOfDay(date) : new Date(),
     note: note || '',
-    source: source === 'voice' ? 'voice' : 'manual',
+    source: isVoice ? 'voice' : 'manual',
     rawTranscript: rawTranscript || '',
+    confidence,
   });
   res.status(201).json(transaction);
 });
@@ -180,6 +190,59 @@ router.post('/voice-entry', voiceRateLimit, upload.single('audio'), async (req, 
   } catch (error) {
     console.error(error);
     return res.json({ transcript, category: null, amount: null });
+  }
+});
+
+router.post('/voice', voiceRateLimit, upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No audio file received.' });
+
+  let transcript = '';
+  try {
+    transcript = await transcribeAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
+  } catch (error) {
+    console.error(error);
+    return res.status(502).json({ message: 'Transcription failed. Try again.' });
+  }
+
+  if (!transcript.trim()) {
+    return res.json({ intent: 'log_expense', transcript: '', category: null, amount: null, confidence: 0 });
+  }
+
+  let classified;
+  try {
+    classified = await classifyVoiceIntent(transcript, monthKey());
+  } catch (error) {
+    console.error(error);
+    classified = { intent: 'log_expense', queryType: null, monthYear: null };
+  }
+
+  if (classified.intent === 'log_expense') {
+    try {
+      const { category, amount, confidence } = await extractExpense(transcript);
+      return res.json({ intent: 'log_expense', transcript, category, amount, confidence });
+    } catch (error) {
+      console.error(error);
+      return res.json({ intent: 'log_expense', transcript, category: null, amount: null, confidence: 0 });
+    }
+  }
+
+  if (classified.queryType === 'unsupported' || !classified.queryType) {
+    return res.json({ intent: 'query', transcript, answer: "I can't answer that yet — I can tell you your monthly summary, category breakdown, remaining budget, or compare months.", dataUsed: null });
+  }
+
+  const monthYear = classified.monthYear || monthKey();
+  try {
+    let dataUsed;
+    if (classified.queryType === 'month_comparison') {
+      dataUsed = await compare([previousMonthYear(monthYear), monthYear]);
+    } else {
+      dataUsed = await summary(monthYear);
+    }
+    const answer = await generateNarrativeSummary(classified.queryType, dataUsed);
+    return res.json({ intent: 'query', transcript, answer, dataUsed });
+  } catch (error) {
+    console.error(error);
+    return res.status(502).json({ message: 'Could not answer that right now. Try again.' });
   }
 });
 

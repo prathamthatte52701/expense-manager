@@ -3,6 +3,7 @@ const { Parser } = require('json2csv');
 const PDFDocument = require('pdfkit');
 const Transaction = require('../models/Transaction');
 const { summary } = require('../services/budget');
+const { generateNarrativeSummary } = require('../services/groq');
 const { monthKey, isValidMonthYear, isValidDateOnly, istStartOfDay, istEndOfDay } = require('../utils/month');
 
 const router = express.Router();
@@ -37,12 +38,15 @@ async function loadRange(startDate, endDate) {
   return Transaction.find(query).sort({ date: 1 }).lean();
 }
 
-function buildPdf(res, filename, title, totals, transactions) {
+function buildPdf(res, filename, title, totals, transactions, aiSummary) {
   const doc = new PDFDocument({ margin: 42 });
   res.header('Content-Type', 'application/pdf');
   res.attachment(filename);
   doc.pipe(res);
   doc.fontSize(18).text(title);
+  if (aiSummary) {
+    doc.moveDown(0.5).fontSize(10).fillColor('#444').text(aiSummary, { width: 480 }).fillColor('black');
+  }
   doc.moveDown().fontSize(11);
   doc.text(`Monthly limit: Rs. ${totals.monthlyLimit}`);
   doc.text(`Total spent: Rs. ${totals.totalSpent}`);
@@ -60,12 +64,34 @@ function buildPdf(res, filename, title, totals, transactions) {
   doc.end();
 }
 
+function rangeTotals(transactions) {
+  const { categories } = require('../config');
+  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const categoryTotals = categories.map((category) => {
+    const matching = transactions.filter((tx) => tx.category === category);
+    return { category, total: matching.reduce((sum, tx) => sum + tx.amount, 0), count: matching.length };
+  });
+  return { monthlyLimit: 0, totalSpent, remaining: -totalSpent, categoryTotals };
+}
+
+async function maybeAiSummary(req, queryType, dataUsed) {
+  if (req.query.aiSummary !== 'true') return null;
+  try {
+    return await generateNarrativeSummary(queryType, dataUsed);
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
 router.get('/range.json', checkRangeParams, async (req, res) => {
   const { start, end } = req.query;
   const transactions = await loadRange(start, end);
+  const totals = rangeTotals(transactions);
+  const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
   res.header('Content-Type', 'application/json');
   res.attachment(`expenses-${start}_to_${end}.json`);
-  res.send(JSON.stringify({ start, end, transactions }, null, 2));
+  res.send(JSON.stringify({ start, end, aiSummary, transactions }, null, 2));
 });
 
 router.get('/range.csv', checkRangeParams, async (req, res) => {
@@ -80,14 +106,9 @@ router.get('/range.csv', checkRangeParams, async (req, res) => {
 router.get('/range.pdf', checkRangeParams, async (req, res) => {
   const { start, end } = req.query;
   const transactions = await loadRange(start, end);
-  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const { categories } = require('../config');
-  const categoryTotals = categories.map((category) => {
-    const matching = transactions.filter((tx) => tx.category === category);
-    return { category, total: matching.reduce((sum, tx) => sum + tx.amount, 0), count: matching.length };
-  });
-  const totals = { monthlyLimit: 0, totalSpent, remaining: -totalSpent, categoryTotals };
-  buildPdf(res, `expenses-${start}_to_${end}.pdf`, `Expense Report ${start} to ${end}`, totals, transactions);
+  const totals = rangeTotals(transactions);
+  const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
+  buildPdf(res, `expenses-${start}_to_${end}.pdf`, `Expense Report ${start} to ${end}`, totals, transactions, aiSummary);
 });
 
 router.get('/:monthYear.json', async (req, res) => {
@@ -96,9 +117,10 @@ router.get('/:monthYear.json', async (req, res) => {
     Transaction.find({ monthYear }).sort({ date: 1 }).lean(),
     summary(monthYear),
   ]);
+  const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
   res.header('Content-Type', 'application/json');
   res.attachment(`expenses-${monthYear}.json`);
-  res.send(JSON.stringify({ monthYear, summary: totals, transactions }, null, 2));
+  res.send(JSON.stringify({ monthYear, aiSummary, summary: totals, transactions }, null, 2));
 });
 
 router.get('/:monthYear.csv', async (req, res) => {
@@ -116,7 +138,8 @@ router.get('/:monthYear.pdf', async (req, res) => {
     Transaction.find({ monthYear }).sort({ date: 1 }).lean(),
     summary(monthYear),
   ]);
-  buildPdf(res, `expenses-${monthYear}.pdf`, `Monthly Expense Report - ${monthYear}`, totals, transactions);
+  const aiSummary = await maybeAiSummary(req, 'monthly_summary', totals);
+  buildPdf(res, `expenses-${monthYear}.pdf`, `Monthly Expense Report - ${monthYear}`, totals, transactions, aiSummary);
 });
 
 module.exports = router;

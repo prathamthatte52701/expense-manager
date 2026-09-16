@@ -5,6 +5,7 @@ import SortControl from '../components/SortControl'
 import TransactionModal from '../components/TransactionModal'
 import { CATEGORIES, api, rupee, thisMonth } from '../lib/api'
 import { sortTransactions } from '../lib/sort'
+import { confidenceTier } from '../components/VoiceEntryModal'
 
 export default function HistoryPage() {
   const [months, setMonths] = useState([thisMonth()])
@@ -89,7 +90,7 @@ export default function HistoryPage() {
         <div className="hidden grid-cols-[1fr_120px_150px_130px] gap-3 border-b border-white/10 p-4 text-sm text-muted md:grid"><span>Category / Note</span><span>Amount</span><span>Date</span><span>Actions</span></div>
         {visible.map((tx) => (
           <div key={tx._id} className="m-3 grid gap-3 rounded-lg border border-white/10 bg-white/5 p-4 md:m-0 md:grid-cols-[1fr_120px_150px_130px] md:items-center md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent">
-            <div><b>{tx.category}</b>{tx.source === 'voice' && <span className="ml-2 rounded bg-teal-400/15 px-1.5 py-0.5 text-xs text-teal-200">voice</span>}<p className="mt-1 text-xs text-muted">{tx.note || ''}</p></div>
+            <div><b>{tx.category}</b>{tx.source === 'voice' && <span className="ml-2 rounded bg-teal-400/15 px-1.5 py-0.5 text-xs text-teal-200">voice</span>}{tx.source === 'voice' && confidenceTier(tx.confidence) && <span title={`${confidenceTier(tx.confidence).label} confidence`} className={`ml-2 inline-block size-2 rounded-full align-middle ${confidenceTier(tx.confidence).color}`} />}<p className="mt-1 text-xs text-muted">{tx.note || ''}</p></div>
             <div>{rupee.format(tx.amount)}</div>
             <div className="text-muted">{tx.date?.slice(0, 10)}</div>
             <div className="flex justify-end gap-2 md:justify-start">

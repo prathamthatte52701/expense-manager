@@ -1,15 +1,25 @@
 import { motion } from 'framer-motion'
-import { CalendarDays, IndianRupee, ListChecks, Mic, Square, X } from 'lucide-react'
+import { CalendarDays, IndianRupee, ListChecks, Mic, MessageCircle, Square, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { CATEGORIES, api, todayInput } from '../lib/api'
 
+export function confidenceTier(confidence) {
+  if (confidence === null || confidence === undefined) return null
+  if (confidence >= 85) return { label: 'Green', color: 'bg-emerald-400' }
+  if (confidence >= 65) return { label: 'Yellow', color: 'bg-yellow-400' }
+  if (confidence >= 40) return { label: 'Orange', color: 'bg-orange-400' }
+  return { label: 'Red', color: 'bg-rose-500' }
+}
+
 export default function VoiceEntryModal({ open, onClose, onSaved }) {
-  const [phase, setPhase] = useState('idle') // idle | recording | processing | confirm
+  const [phase, setPhase] = useState('idle') // idle | recording | processing | confirm | answer
   const [transcript, setTranscript] = useState('')
   const [category, setCategory] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayInput())
+  const [confidence, setConfidence] = useState(null)
+  const [answer, setAnswer] = useState('')
   const [error, setError] = useState('')
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
@@ -17,7 +27,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   if (!open) return null
 
   function reset() {
-    setPhase('idle'); setTranscript(''); setCategory(''); setAmount(''); setDate(todayInput()); setError('')
+    setPhase('idle'); setTranscript(''); setCategory(''); setAmount(''); setDate(todayInput()); setConfidence(null); setAnswer(''); setError('')
   }
 
   function close() {
@@ -53,14 +63,22 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
     const form = new FormData()
     form.append('audio', blob, 'entry.webm')
     try {
-      const { data } = await api.post('/budget/voice-entry', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const { data } = await api.post('/budget/voice', form, { headers: { 'Content-Type': 'multipart/form-data' } })
       if (!data.transcript) {
         setError('No speech detected. Try again, or fill this in manually below.')
+        setPhase('confirm')
+        return
       }
       setTranscript(data.transcript || '')
-      setCategory(data.category || '')
-      setAmount(data.amount ? String(data.amount) : '')
-      setPhase('confirm')
+      if (data.intent === 'query') {
+        setAnswer(data.answer || '')
+        setPhase('answer')
+      } else {
+        setCategory(data.category || '')
+        setAmount(data.amount ? String(data.amount) : '')
+        setConfidence(data.confidence ?? null)
+        setPhase('confirm')
+      }
     } catch {
       setError('Voice processing failed. Try again, or add this expense manually.')
       setPhase('confirm')
@@ -73,7 +91,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
       return
     }
     try {
-      await api.post('/budget/transactions', { category, amount, date, source: 'voice', rawTranscript: transcript })
+      await api.post('/budget/transactions', { category, amount, date, source: 'voice', rawTranscript: transcript, confidence })
       toast.success('Expense saved from voice entry')
       onSaved?.()
       close()
@@ -81,6 +99,8 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
       toast.error(err.response?.data?.message || 'Unable to save entry')
     }
   }
+
+  const tier = confidenceTier(confidence)
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-3 backdrop-blur-sm sm:place-items-center">
@@ -110,6 +130,12 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
         {phase === 'confirm' && (
           <div className="space-y-4">
             {transcript && <div className="rounded-md bg-white/5 p-3 text-sm text-muted">"{transcript}"</div>}
+            {tier && (
+              <div className={`flex items-center gap-2 rounded-md p-2 text-xs ${tier.label === 'Orange' || tier.label === 'Red' ? 'bg-orange-400/10 text-orange-200' : 'bg-white/5 text-muted'}`}>
+                <span className={`size-2 rounded-full ${tier.color}`} />
+                <span>{tier.label} confidence{(tier.label === 'Orange' || tier.label === 'Red') && ' — double-check the values below'}</span>
+              </div>
+            )}
             <label className="field">
               <span className="inline-flex items-center gap-2"><ListChecks className="size-4" /> Category</span>
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -126,6 +152,17 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
             <button className="premium-btn w-full justify-center" type="button" onClick={save}>Confirm & Save</button>
+          </div>
+        )}
+
+        {phase === 'answer' && (
+          <div className="space-y-4">
+            {transcript && <div className="rounded-md bg-white/5 p-3 text-sm text-muted">"{transcript}"</div>}
+            <div className="flex items-start gap-3 rounded-xl bg-teal-400/10 p-4 text-sm">
+              <MessageCircle className="mt-0.5 size-5 shrink-0 text-teal-300" />
+              <p>{answer}</p>
+            </div>
+            <button className="soft-btn w-full justify-center" type="button" onClick={close}>Done</button>
           </div>
         )}
       </motion.div>

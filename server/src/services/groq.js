@@ -47,7 +47,7 @@ async function transcribeAudio(buffer, filename, mimeType) {
   });
 }
 
-async function extractExpense(transcript) {
+async function chatJson(systemPrompt, userContent) {
   return withKeyRotation(async (key) => {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -60,25 +60,56 @@ async function extractExpense(transcript) {
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
-          {
-            role: 'system',
-            content: `Extract an expense from a sentence that may be in Hindi, Hinglish, or English. Return only JSON: { "category": one of ${JSON.stringify(categories)} or null, "amount": number in rupees or null }. If either field is ambiguous or missing, return null for it. Never guess.`,
-          },
-          { role: 'user', content: transcript },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
         ],
       }),
     });
     if (!response.ok) {
-      const error = new Error(`Groq extraction failed: ${response.status}`);
+      const error = new Error(`Groq chat failed: ${response.status}`);
       error.status = response.status;
       throw error;
     }
     const data = await response.json();
-    const parsed = JSON.parse(data.choices?.[0]?.message?.content || '{}');
-    const category = categories.includes(parsed.category) ? parsed.category : null;
-    const amount = Number.isFinite(Number(parsed.amount)) && Number(parsed.amount) > 0 ? Number(parsed.amount) : null;
-    return { category, amount };
+    return JSON.parse(data.choices?.[0]?.message?.content || '{}');
   });
 }
 
-module.exports = { transcribeAudio, extractExpense };
+async function extractExpense(transcript) {
+  const parsed = await chatJson(
+    `Extract an expense from a sentence that may be in Hindi, Hinglish, or English. Return only JSON: { "category": one of ${JSON.stringify(categories)} or null, "amount": number in rupees or null, "confidence": integer 0-100 reflecting how certain you are about both fields }. If either field is ambiguous or missing, return null for it and lower confidence accordingly. Never guess.`,
+    transcript
+  );
+  const category = categories.includes(parsed.category) ? parsed.category : null;
+  const amount = Number.isFinite(Number(parsed.amount)) && Number(parsed.amount) > 0 ? Number(parsed.amount) : null;
+  let confidence = Number.isFinite(Number(parsed.confidence)) ? Math.round(Number(parsed.confidence)) : 0;
+  confidence = Math.max(0, Math.min(100, confidence));
+  if (!category || !amount) confidence = Math.min(confidence, 39);
+  return { category, amount, confidence };
+}
+
+const QUERY_TYPES = ['monthly_summary', 'category_breakdown', 'remaining_budget', 'month_comparison'];
+
+async function classifyVoiceIntent(transcript, currentMonthYear) {
+  const parsed = await chatJson(
+    `Classify a voice command that may be in Hindi, Hinglish, or English. Current month is ${currentMonthYear} (YYYY-MM). Return only JSON: { "intent": "log_expense" or "query", "queryType": one of ${JSON.stringify(QUERY_TYPES)} or "unsupported" or null, "monthYear": "YYYY-MM" string if the user clearly referenced a specific month/year, else null }. "log_expense" is ONLY for statements reporting a specific amount spent (e.g. "500 rupees on fuel", "spent 200 on food"). Everything else — questions, requests, unrelated statements, small talk — is "query". If it's a query about expenses/budget matching one of the 4 supported types, set queryType to that; otherwise (including anything unrelated to expenses, like the weather) set queryType "unsupported". Never guess a month reference — only set monthYear if explicit or unambiguous (e.g. "last month", "August").`,
+    transcript
+  );
+  const intent = parsed.intent === 'query' ? 'query' : 'log_expense';
+  let queryType = null;
+  if (intent === 'query') {
+    queryType = QUERY_TYPES.includes(parsed.queryType) ? parsed.queryType : 'unsupported';
+  }
+  const monthYear = /^\d{4}-(0[1-9]|1[0-2])$/.test(parsed.monthYear) ? parsed.monthYear : null;
+  return { intent, queryType, monthYear };
+}
+
+async function generateNarrativeSummary(queryType, realData) {
+  const parsed = await chatJson(
+    `You phrase short, natural answers about a user's expenses using ONLY the real numbers given to you as JSON. Amounts are in Indian Rupees — always use the ₹ symbol, never $. Never invent or alter numbers. Respond in 1-3 sentences, friendly and concise. Return only JSON: { "answer": string }.`,
+    JSON.stringify({ queryType, data: realData })
+  );
+  return typeof parsed.answer === 'string' && parsed.answer.trim() ? parsed.answer.trim() : 'Here are your numbers.';
+}
+
+module.exports = { transcribeAudio, extractExpense, classifyVoiceIntent, generateNarrativeSummary };

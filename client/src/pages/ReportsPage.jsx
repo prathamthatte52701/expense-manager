@@ -19,6 +19,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState('')
   const [error, setError] = useState('')
+  const [aiSummary, setAiSummary] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -34,6 +35,11 @@ export default function ReportsPage() {
   }, [monthYear])
 
   useEffect(() => { load() }, [load])
+
+  function withAiSummary(url) {
+    if (!aiSummary) return url
+    return `${url}${url.includes('?') ? '&' : '?'}aiSummary=true`
+  }
 
   async function downloadFile(url, filename) {
     setDownloading(filename)
@@ -66,19 +72,24 @@ export default function ReportsPage() {
         <MetricCard label="Remaining" value={rupee.format(summary?.remaining || 0)} detail={`${summary?.percentUsed || 0}% used`} icon={Download} tone={summary?.status === 'over' ? 'danger' : 'positive'} />
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-muted">
+        <input type="checkbox" checked={aiSummary} onChange={(e) => setAiSummary(e.target.checked)} />
+        Include AI Summary
+      </label>
+
       <DataCard title="Monthly report" description="Full month totals, category subtotals, and every transaction." actions={<input className="w-40" type="month" value={monthYear} onChange={(event) => setMonthYear(event.target.value)} />}>
         <div className="flex flex-wrap gap-2">
-          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/${monthYear}.csv`, `expenses-${monthYear}.csv`)} type="button"><FileSpreadsheet className="size-4" />CSV</button>
-          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/${monthYear}.json`, `expenses-${monthYear}.json`)} type="button"><FileText className="size-4" />JSON</button>
-          <button className="premium-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/${monthYear}.pdf`, `expenses-${monthYear}.pdf`)} type="button"><FileText className="size-4" />PDF</button>
+          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/${monthYear}.csv`), `expenses-${monthYear}.csv`)} type="button"><FileSpreadsheet className="size-4" />CSV</button>
+          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/${monthYear}.json`), `expenses-${monthYear}.json`)} type="button"><FileText className="size-4" />JSON</button>
+          <button className="premium-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/${monthYear}.pdf`), `expenses-${monthYear}.pdf`)} type="button"><FileText className="size-4" />PDF</button>
         </div>
       </DataCard>
 
       <DataCard title="Weekly report" description="Pick any date range for a custom weekly export." actions={<div className="flex gap-2"><input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} /><input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} /></div>}>
         <div className="flex flex-wrap gap-2">
-          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/range.csv?start=${weekStart}&end=${weekEnd}`, `expenses-${weekStart}_to_${weekEnd}.csv`)} type="button"><FileSpreadsheet className="size-4" />CSV</button>
-          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/range.json?start=${weekStart}&end=${weekEnd}`, `expenses-${weekStart}_to_${weekEnd}.json`)} type="button"><FileText className="size-4" />JSON</button>
-          <button className="premium-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(`/export/range.pdf?start=${weekStart}&end=${weekEnd}`, `expenses-${weekStart}_to_${weekEnd}.pdf`)} type="button"><FileText className="size-4" />PDF</button>
+          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/range.csv?start=${weekStart}&end=${weekEnd}`), `expenses-${weekStart}_to_${weekEnd}.csv`)} type="button"><FileSpreadsheet className="size-4" />CSV</button>
+          <button className="soft-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/range.json?start=${weekStart}&end=${weekEnd}`), `expenses-${weekStart}_to_${weekEnd}.json`)} type="button"><FileText className="size-4" />JSON</button>
+          <button className="premium-btn" disabled={Boolean(downloading)} onClick={() => downloadFile(withAiSummary(`/export/range.pdf?start=${weekStart}&end=${weekEnd}`), `expenses-${weekStart}_to_${weekEnd}.pdf`)} type="button"><FileText className="size-4" />PDF</button>
         </div>
       </DataCard>
 

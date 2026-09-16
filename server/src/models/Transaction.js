@@ -11,6 +11,7 @@ const transactionSchema = new mongoose.Schema(
     time: { type: String, default: '', trim: true },
     source: { type: String, enum: ['manual', 'voice'], default: 'manual' },
     rawTranscript: { type: String, default: '' },
+    confidence: { type: Number, default: null },
     monthYear: { type: String, index: true },
   },
   { timestamps: true }
