@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { CalendarDays, IndianRupee, ListChecks, Mic, MessageCircle, Square, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { CATEGORIES, api, todayInput } from '../lib/api'
 
@@ -23,6 +23,35 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   const [error, setError] = useState('')
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
+
+  useEffect(() => {
+    if (!open) return undefined
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key !== 'Enter') return
+      if (phase === 'idle') {
+        event.preventDefault()
+        startRecording()
+      } else if (phase === 'recording') {
+        event.preventDefault()
+        stopRecording()
+      } else if (phase === 'confirm') {
+        if (category && amount) {
+          event.preventDefault()
+          save()
+        }
+      } else if (phase === 'answer') {
+        event.preventDefault()
+        close()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, phase, category, amount])
 
   if (!open) return null
 
