@@ -25,7 +25,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   const [error, setError] = useState('')
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
-  const cancelledRef = useRef(false)
+  const recordingToken = useRef(0)
 
   useEffect(() => {
     if (!open) return undefined
@@ -63,23 +63,23 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
   }
 
   function close() {
-    cancelledRef.current = true
+    recordingToken.current += 1 // invalidates ANY in-flight startRecording call, including a stale one from a prior session
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.onstop = null
       mediaRecorder.current.stop()
       mediaRecorder.current.stream?.getTracks().forEach((track) => track.stop())
     }
+    mediaRecorder.current = null
     reset()
     onClose()
   }
 
   async function startRecording() {
     setError('')
-    cancelledRef.current = false
+    const myToken = ++recordingToken.current
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      // modal was closed/reset while getUserMedia was pending - don't resurrect a stale recording
-      if (cancelledRef.current) {
+      if (myToken !== recordingToken.current) {
         stream.getTracks().forEach((track) => track.stop())
         return
       }
@@ -88,13 +88,15 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data) }
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop())
-        submitAudio(new Blob(chunks.current, { type: 'audio/webm' }))
+        if (myToken === recordingToken.current) submitAudio(new Blob(chunks.current, { type: 'audio/webm' }))
       }
       mediaRecorder.current = recorder
       recorder.start()
       setPhase('recording')
     } catch {
-      setError('Microphone permission denied. Enable mic access in your browser settings, or add this expense manually.')
+      if (myToken === recordingToken.current) {
+        setError('Microphone permission denied. Enable mic access in your browser settings, or add this expense manually.')
+      }
     }
   }
 
