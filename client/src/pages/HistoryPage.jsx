@@ -25,7 +25,11 @@ export default function HistoryPage() {
     setTransactions(data)
   }, [monthYear])
   useEffect(() => { loadMonths() }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    window.addEventListener('expense:changed', load)
+    return () => window.removeEventListener('expense:changed', load)
+  }, [load])
 
   async function save(form) {
     await api.put(`/budget/transactions/${modalTransaction._id}`, form)

@@ -34,7 +34,11 @@ export default function AnalyticsPage() {
     }
   }, [monthYear])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    window.addEventListener('expense:changed', load)
+    return () => window.removeEventListener('expense:changed', load)
+  }, [load])
 
   const pieData = useMemo(() => (summary?.categoryTotals || []).filter((c) => c.total > 0), [summary])
   const barData = useMemo(() => compare.map((m) => ({ label: monthLabel(m.monthYear, { month: 'short', year: '2-digit' }), ...m.categoryTotals })), [compare])

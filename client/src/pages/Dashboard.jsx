@@ -23,7 +23,11 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    window.addEventListener('expense:changed', load)
+    return () => window.removeEventListener('expense:changed', load)
+  }, [])
   if (loading || !summary) return <div className="glass p-6">Loading dashboard...</div>
 
   const maxCategoryTotal = Math.max(...summary.categoryTotals.map((c) => c.total), 1)

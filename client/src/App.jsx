@@ -5,6 +5,7 @@ import {
   ChevronRight,
   FileBarChart,
   Gauge,
+  Mic,
   Moon,
   PlusCircle,
   ReceiptText,
@@ -15,7 +16,9 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Toaster } from 'sonner'
 import Dashboard from './pages/Dashboard'
+import VoiceEntryModal from './components/VoiceEntryModal'
 import { ThemeProvider, useTheme } from './hooks/useTheme'
+import { GlobalVoiceProvider, useGlobalVoice } from './hooks/useGlobalVoice'
 
 const AddSpendPage = lazy(() => import('./pages/AddSpendPage'))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
@@ -46,6 +49,7 @@ const liveRoutes = {
 
 function Shell() {
   const { theme, toggleTheme } = useTheme()
+  const { open, openVoice, closeVoice } = useGlobalVoice()
   const [route, setRoute] = useState(window.location.hash.replace('#', '') || '/')
 
   useEffect(() => {
@@ -134,6 +138,17 @@ function Shell() {
         </main>
       </div>
 
+      <button
+        type="button"
+        className="premium-btn fixed bottom-24 right-6 z-40 size-14 justify-center rounded-full p-0 shadow-lg sm:bottom-6"
+        title="Voice (Ctrl+M) — log an expense or ask about your spending"
+        onClick={openVoice}
+      >
+        <Mic className="size-5" />
+      </button>
+
+      <VoiceEntryModal open={open} onClose={closeVoice} onSaved={closeVoice} />
+
       <Toaster richColors position="top-right" />
     </div>
   )
@@ -142,7 +157,9 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <Shell />
+      <GlobalVoiceProvider>
+        <Shell />
+      </GlobalVoiceProvider>
     </ThemeProvider>
   )
 }

@@ -31,7 +31,11 @@ export default function CalendarPage() {
     }
   }, [monthYear])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    window.addEventListener('expense:changed', load)
+    return () => window.removeEventListener('expense:changed', load)
+  }, [load])
 
   const byDay = useMemo(() => new Map(days.map((d) => [d.date, d])), [days])
   const selected = selectedDay ? byDay.get(selectedDay) : null

@@ -94,6 +94,7 @@ export default function VoiceEntryModal({ open, onClose, onSaved }) {
       await api.post('/budget/transactions', { category, amount, date, source: 'voice', rawTranscript: transcript, confidence })
       toast.success('Expense saved from voice entry')
       onSaved?.()
+      window.dispatchEvent(new Event('expense:changed'))
       close()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to save entry')

@@ -2,23 +2,27 @@ import { CalendarDays, IndianRupee, Mic, NotebookPen, PlusCircle } from 'lucide-
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CATEGORIES, api, rupee, thisMonth, todayInput } from '../lib/api'
-import VoiceEntryModal from '../components/VoiceEntryModal'
+import { useGlobalVoice } from '../hooks/useGlobalVoice'
 
 export default function AddSpendPage() {
+  const { openVoice } = useGlobalVoice()
   const [summary, setSummary] = useState(null)
   const [category, setCategory] = useState(CATEGORIES[0])
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayInput())
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
-  const [voiceOpen, setVoiceOpen] = useState(false)
 
   async function load() {
     const { data } = await api.get('/budget/summary', { params: { monthYear: thisMonth() } })
     setSummary(data)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    window.addEventListener('expense:changed', load)
+    return () => window.removeEventListener('expense:changed', load)
+  }, [])
 
   async function submit(event) {
     event.preventDefault()
@@ -79,11 +83,9 @@ export default function AddSpendPage() {
 
         <div className="flex gap-3">
           <button className="premium-btn flex-1 justify-center" disabled={saving} type="submit"><PlusCircle className="size-5" />{saving ? 'Saving...' : 'Add Expense'}</button>
-          <button type="button" className="soft-btn" title="Add by voice" onClick={() => setVoiceOpen(true)}><Mic className="size-5" /></button>
+          <button type="button" className="soft-btn" title="Voice (Ctrl+M) — log an expense or ask about your spending" onClick={openVoice}><Mic className="size-5" /></button>
         </div>
       </form>
-
-      <VoiceEntryModal open={voiceOpen} onClose={() => setVoiceOpen(false)} onSaved={load} />
     </div>
   )
 }
